@@ -34,3 +34,122 @@ button{font:inherit;color:inherit;cursor:pointer}
 .bell{display:none;position:absolute;right:6px;top:-18px;font-size:16px}
 .done .bell{display:block;animation:boing .7s ease-in-out infinite}
 .bar{height:4px;background:var(--line);margin:0 9px;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--run)}
+.done .bar i{background:var(--done)}
+.ctl{display:flex;gap:6px;padding:8px 9px 9px}
+.ctl button{flex:1;border-radius:8px;border:1px solid var(--line);background:none;padding:5px 0;font-size:13px;font-weight:600}
+.ctl .go{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.edit{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:0 9px 9px}
+.edit input{width:100%;font:inherit;font-size:12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px}
+.edit .wide{grid-column:1/3}
+:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+#island{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translateX(-50%);z-index:10;background:#000;color:#fff;border-radius:28px;width:190px;transition:width .35s cubic-bezier(.3,1.3,.5,1);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#island.open{width:min(340px,calc(100vw - 20px))}
+#island .head{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;background:none;border:0;color:#fff}
+#island .t{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+#island .lbl{font-size:12px;color:#9aa}
+#island.run .t{color:#fff}#island.done{animation:pulse 1s infinite}#island.done .t{color:#5fd6a0;display:inline-block;animation:boing .7s ease-in-out infinite}
+#ipanel{display:none;padding:4px 16px 16px}
+#island.open #ipanel{display:block}
+.row{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px}
+.row label{display:flex;flex-direction:column;font-size:11px;color:#9aa;align-items:center;gap:3px}
+.row input{width:72px;text-align:center;font:inherit;font-size:22px;font-weight:600;background:#1c1c1e;color:#fff;border:0;border-radius:10px;padding:8px 0}
+.row2{display:flex;gap:8px}
+.row2 button{flex:1;border:0;border-radius:12px;padding:10px;font-weight:600;background:#2c2c2e;color:#fff}
+.row2 .go{background:#e8e8e6;color:#000}
+#stop{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);z-index:20;background:var(--done);color:#08150f;border:0;border-radius:999px;padding:14px 26px;font-weight:800;font-size:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);animation:pulse 1s infinite}
+#stop[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="top"><div class="brand">Concours</div><button class="add" id="add">+ Minuteur</button></div>
+<div id="island">
+  <button class="head" id="ihead" aria-expanded="false"><span class="lbl" id="ilbl">Décompte</span><span class="t" id="itime">00:00</span></button>
+  <div id="ipanel">
+    <div class="row">
+      <label>heures<input id="ih" type="number" min="0" max="23" value="0" inputmode="numeric"></label>
+      <label>min<input id="im" type="number" min="0" max="59" value="30" inputmode="numeric"></label>
+      <label>sec<input id="is" type="number" min="0" max="59" value="0" inputmode="numeric"></label>
+    </div>
+    <div class="row2"><button class="go" id="igo">Lancer</button><button id="ireset">Réinitialiser</button></div>
+  </div>
+</div>
+<button id="stop" hidden>🔔 Couper la sonnerie</button>
+<div id="board"></div>
+<script>
+const board=document.getElementById('board');
+const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60,p=n=>String(n).padStart(2,'0');return h?h+':'+p(m)+':'+p(r):p(m)+':'+p(r)};
+let ac;function beep(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();[0,.25,.5].forEach(d=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.2;o.connect(g);g.connect(ac.destination);o.start(ac.currentTime+d);o.stop(ac.currentTime+d+.15)})}catch(e){}}
+let rt=null;const anyDone=()=>timers.some(t=>t.e.done)||G.done;
+function ring(){const sb=document.getElementById('stop');beep();sb.hidden=false;if(!rt)rt=setInterval(()=>{if(!anyDone()){clearInterval(rt);rt=null;sb.hidden=true;return}beep()},1400)}
+function stopAll(){timers.forEach(t=>{if(t.e.done){t.e.reset();t.draw()}});if(G.done){G.set(readG());drawG()}document.getElementById('stop').hidden=true}
+function wake(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume()}catch(e){}}
+
+/* moteur commun */
+function engine(total){return{total,rem:total,endAt:0,run:false,done:false,
+ left(){return this.run?Math.max(0,this.endAt-Date.now()):this.rem},
+ start(){if(this.run)return;if(this.rem<=0)this.rem=this.total;if(this.total<=0)return;this.done=false;this.run=true;this.endAt=Date.now()+this.rem},
+ pause(){if(!this.run)return;this.rem=this.left();this.run=false},
+ reset(){this.run=false;this.done=false;this.rem=this.total},
+ set(t){this.total=t;this.reset()}}}
+
+/* chronos déplaçables */
+const timers=[];let z=10;
+function addTimer(o,x,y){
+ const e=engine((o.min*60+(o.sec||0))*1000);
+ const el=document.createElement('div');el.className='card';
+ el.innerHTML=`<div class="grip"><div class="name"></div><button class="ib ed" aria-label="Modifier">✎</button><button class="ib del" aria-label="Supprimer">✕</button></div>
+ <div class="time"><span class="bell">🔔</span><span class="tv"></span></div><div class="bar"><i></i></div>
+ <div class="ctl"><button class="go" aria-label="Lancer">▶</button><button class="rs" aria-label="Remettre à zéro">↺</button></div>
+ <div class="edit" hidden><input class="wide" data-k="name" placeholder="Nom"><input data-k="min" type="number" min="0" placeholder="min" inputmode="numeric"><input data-k="sec" type="number" min="0" max="59" placeholder="sec" inputmode="numeric"></div>`;
+ const t={e,el,name:o.name||''};
+ const q=s=>el.querySelector(s);
+ el.style.left=x+'px';el.style.top=y+'px';board.appendChild(el);timers.push(t);
+ const draw=()=>{const l=e.left();q('.name').textContent=t.name||'Minuteur';q('.name').classList.toggle('empty',!t.name);q('.tv').textContent=fmt(l);q('.bar i').style.width=(e.total?(100*(1-l/e.total)):0)+'%';q('.go').textContent=e.done?'■':e.run?'❚❚':'▶';el.classList.toggle('run',e.run);el.classList.toggle('done',e.done)};
+ t.draw=draw;
+ q('.go').onclick=()=>{wake();if(e.done){e.reset();draw();return}e.run?e.pause():e.start();draw()};
+ q('.rs').onclick=()=>{e.reset();draw()};
+ q('.del').onclick=()=>{el.remove();timers.splice(timers.indexOf(t),1)};
+ q('.ed').onclick=()=>{const ed=q('.edit');ed.hidden=!ed.hidden;if(!ed.hidden){const v=k=>ed.querySelector(`[data-k=${k}]`);v('name').value=t.name;v('min').value=Math.floor(e.total/60000);v('sec').value=Math.floor(e.total/1000)%60;v('name').focus()}};
+ el.querySelector('.edit').oninput=ev=>{const ed=q('.edit'),v=k=>ed.querySelector(`[data-k=${k}]`).value;t.name=v('name');const ms=((+v('min')||0)*60+(+v('sec')||0))*1000;if(ms!==e.total)e.set(ms);draw()};
+ /* déplacement */
+ const g=q('.grip');
+ g.addEventListener('pointerdown',ev=>{if(ev.target.closest('button'))return;g.setPointerCapture(ev.pointerId);el.style.zIndex=++z;const r=el.getBoundingClientRect(),dx=ev.clientX-r.left,dy=ev.clientY-r.top;
+  const mv=m=>{el.style.left=Math.min(innerWidth-el.offsetWidth,Math.max(0,m.clientX-dx))+'px';el.style.top=Math.min(innerHeight-60,Math.max(0,m.clientY-dy))+'px'};
+  const up=()=>{g.removeEventListener('pointermove',mv);g.removeEventListener('pointerup',up);g.removeEventListener('pointercancel',up)};
+  g.addEventListener('pointermove',mv);g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up)});
+ draw();return t}
+
+const presets=[
+ {name:'Ballotines (farce fine)',min:12},
+ {name:'Huile verte',min:10},
+ {name:'Courge rôtie',min:45},
+ {name:'Pépins de courge',min:10},
+ {name:'Tuile dessert',min:5},
+ {name:'Tuile plat',min:7},
+ {name:'Tartelettes',min:12},
+ {name:'Sablé',min:15},
+ {name:'Baklava',min:15},
+ {name:'Carré de cochon',min:15}];
+function slot(i){const cols=Math.max(1,Math.floor((innerWidth-8)/176));return[8+(i%cols)*176,66+Math.floor(i/cols)*138]}
+presets.forEach((p,i)=>{const[x,y]=slot(i);addTimer(p,x,y)});
+document.getElementById('add').onclick=()=>{const i=timers.length,[x,y]=slot(i);const t=addTimer({min:5},x,y);t.el.style.zIndex=++z;t.el.querySelector('.ed').click()};
+
+/* décompte total (Dynamic Island) */
+const isl=document.getElementById('island'),G=engine(30*60*1000);
+const $=id=>document.getElementById(id);$('stop').onclick=stopAll;
+const readG=()=>((+$('ih').value||0)*3600+(+$('im').value||0)*60+(+$('is').value||0))*1000;
+function drawG(){const l=G.left();$('itime').textContent=fmt(l);$('ilbl').textContent=G.run?'':'Décompte';isl.classList.toggle('run',G.run);isl.classList.toggle('done',G.done);$('igo').textContent=G.done?'Couper':G.run?'Pause':(G.rem<G.total&&G.rem>0?'Reprendre':'Lancer')}
+$('ihead').onclick=()=>{const o=isl.classList.toggle('open');$('ihead').setAttribute('aria-expanded',o)};
+['ih','im','is'].forEach(id=>$(id).oninput=()=>{G.set(readG());drawG()});
+$('igo').onclick=()=>{wake();if(G.done){G.set(readG());drawG();return}if(!G.run&&G.rem===G.total)G.set(readG());G.run?G.pause():G.start();drawG()};
+$('ireset').onclick=()=>{G.set(readG());drawG()};
+G.set(readG());drawG();
+
+setInterval(()=>{
+ timers.forEach(t=>{if(t.e.run&&t.e.left()<=0){t.e.run=false;t.e.rem=0;t.e.done=true;ring()}t.draw()});
+ if(G.run&&G.left()<=0){G.run=false;G.rem=0;G.done=true;ring();isl.classList.add('open')}
+ drawG()},250);
+</script>
+</body>
+</html>
