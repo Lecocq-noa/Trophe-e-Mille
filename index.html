@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dashboard concours</title>
+<title>Trophée Mille</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#e8e9e7;--card:#f6f6f4;--ink:#2b2f2e;--mute:#7a817e;--line:#d2d5d2;--run:#2b2f2e;--done:#1f9d6b;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -17,6 +17,9 @@ body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",sys
 .top>*{pointer-events:auto}
 .brand{font-weight:800;font-size:20px;letter-spacing:-.01em}
 button{font:inherit;color:inherit;cursor:pointer}
+.right{display:flex;align-items:center;gap:10px}
+.msg{border:1.5px solid var(--ink);border-radius:12px;padding:8px 14px;font-weight:600;font-size:14px;background:var(--card);white-space:nowrap}
+@media (max-width:899px){#island{width:170px}.brand{position:fixed;left:14px;top:calc(env(safe-area-inset-top,0px) + 70px)}.msg{position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 62px);font-size:13px;padding:6px 10px}.right{display:block}}
 .add{background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:10px 18px;font-weight:600}
 .card{position:absolute;width:168px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.12);overflow:hidden;user-select:none}
 .card.run{border-color:var(--run)}
@@ -63,7 +66,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="top"><div class="brand">Concours</div><button class="add" id="add">+ Minuteur</button></div>
+<div class="top"><div class="brand">Trophée Mille</div><div class="right"><div class="msg">Bon courage Léa et Léo</div><button class="add" id="add">+ Minuteur</button></div></div>
 <div id="island">
   <button class="head" id="ihead" aria-expanded="false"><span class="lbl" id="ilbl">Décompte</span><span class="t" id="itime">00:00</span></button>
   <div id="ipanel">
@@ -133,7 +136,7 @@ const presets=[
  {name:'Sablé',temp:'160 °C',min:15},
  {name:'Baklava',temp:'150 °C',min:15},
  {name:'Carré de cochon',temp:'180 °C · 56 °C à cœur',min:15}];
-function slot(i){const cols=Math.max(1,Math.floor((innerWidth-8)/176));return[8+(i%cols)*176,66+Math.floor(i/cols)*148]}
+function slot(i){const cols=Math.max(1,Math.floor((innerWidth-8)/176));return[8+(i%cols)*176,(innerWidth<900?112:66)+Math.floor(i/cols)*148]}
 presets.forEach((p,i)=>{const[x,y]=slot(i);addTimer(p,x,y)});
 document.getElementById('add').onclick=()=>{const i=timers.length,[x,y]=slot(i);const t=addTimer({min:5},x,y);t.el.style.zIndex=++z;t.el.querySelector('.ed').click()};
 
