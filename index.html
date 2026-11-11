@@ -29,6 +29,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .name.empty{color:var(--mute);font-weight:400}
 .ib{background:none;border:0;color:var(--mute);padding:2px 4px;font-size:12px}
 .ib:hover,.ib:focus-visible{color:var(--ink)}
+.temp{padding:0 9px;font-size:13px;font-weight:600;color:var(--mute);min-height:17px}
 .time{position:relative;padding:0 9px 3px;font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
 .run .time{color:var(--run)}.done .time{color:var(--done)}
 .bell{display:none;position:absolute;right:6px;top:-18px;font-size:16px}
@@ -99,19 +100,20 @@ function addTimer(o,x,y){
  const e=engine((o.min*60+(o.sec||0))*1000);
  const el=document.createElement('div');el.className='card';
  el.innerHTML=`<div class="grip"><div class="name"></div><button class="ib ed" aria-label="Modifier">✎</button><button class="ib del" aria-label="Supprimer">✕</button></div>
+ <div class="temp"></div>
  <div class="time"><span class="bell">🔔</span><span class="tv"></span></div><div class="bar"><i></i></div>
  <div class="ctl"><button class="go" aria-label="Lancer">▶</button><button class="rs" aria-label="Remettre à zéro">↺</button></div>
- <div class="edit" hidden><input class="wide" data-k="name" placeholder="Nom"><input data-k="min" type="number" min="0" placeholder="min" inputmode="numeric"><input data-k="sec" type="number" min="0" max="59" placeholder="sec" inputmode="numeric"></div>`;
- const t={e,el,name:o.name||''};
+ <div class="edit" hidden><input class="wide" data-k="name" placeholder="Nom"><input class="wide" data-k="temp" placeholder="Température"><input data-k="min" type="number" min="0" placeholder="min" inputmode="numeric"><input data-k="sec" type="number" min="0" max="59" placeholder="sec" inputmode="numeric"></div>`;
+ const t={e,el,name:o.name||'',temp:o.temp||''};
  const q=s=>el.querySelector(s);
  el.style.left=x+'px';el.style.top=y+'px';board.appendChild(el);timers.push(t);
- const draw=()=>{const l=e.left();q('.name').textContent=t.name||'Minuteur';q('.name').classList.toggle('empty',!t.name);q('.tv').textContent=fmt(l);q('.bar i').style.width=(e.total?(100*(1-l/e.total)):0)+'%';q('.go').textContent=e.done?'■':e.run?'❚❚':'▶';el.classList.toggle('run',e.run);el.classList.toggle('done',e.done)};
+ const draw=()=>{const l=e.left();q('.name').textContent=t.name||'Minuteur';q('.name').classList.toggle('empty',!t.name);q('.temp').textContent=t.temp;q('.tv').textContent=fmt(l);q('.bar i').style.width=(e.total?(100*(1-l/e.total)):0)+'%';q('.go').textContent=e.done?'■':e.run?'❚❚':'▶';el.classList.toggle('run',e.run);el.classList.toggle('done',e.done)};
  t.draw=draw;
  q('.go').onclick=()=>{wake();if(e.done){e.reset();draw();return}e.run?e.pause():e.start();draw()};
  q('.rs').onclick=()=>{e.reset();draw()};
  q('.del').onclick=()=>{el.remove();timers.splice(timers.indexOf(t),1)};
- q('.ed').onclick=()=>{const ed=q('.edit');ed.hidden=!ed.hidden;if(!ed.hidden){const v=k=>ed.querySelector(`[data-k=${k}]`);v('name').value=t.name;v('min').value=Math.floor(e.total/60000);v('sec').value=Math.floor(e.total/1000)%60;v('name').focus()}};
- el.querySelector('.edit').oninput=ev=>{const ed=q('.edit'),v=k=>ed.querySelector(`[data-k=${k}]`).value;t.name=v('name');const ms=((+v('min')||0)*60+(+v('sec')||0))*1000;if(ms!==e.total)e.set(ms);draw()};
+ q('.ed').onclick=()=>{const ed=q('.edit');ed.hidden=!ed.hidden;if(!ed.hidden){const v=k=>ed.querySelector(`[data-k=${k}]`);v('name').value=t.name;v('temp').value=t.temp;v('min').value=Math.floor(e.total/60000);v('sec').value=Math.floor(e.total/1000)%60;v('name').focus()}};
+ el.querySelector('.edit').oninput=ev=>{const ed=q('.edit'),v=k=>ed.querySelector(`[data-k=${k}]`).value;t.name=v('name');t.temp=v('temp');const ms=((+v('min')||0)*60+(+v('sec')||0))*1000;if(ms!==e.total)e.set(ms);draw()};
  /* déplacement */
  const g=q('.grip');
  g.addEventListener('pointerdown',ev=>{if(ev.target.closest('button'))return;g.setPointerCapture(ev.pointerId);el.style.zIndex=++z;const r=el.getBoundingClientRect(),dx=ev.clientX-r.left,dy=ev.clientY-r.top;
@@ -121,17 +123,17 @@ function addTimer(o,x,y){
  draw();return t}
 
 const presets=[
- {name:'Ballotines (farce fine)',min:12},
- {name:'Huile verte',min:10},
- {name:'Courge rôtie',min:45},
+ {name:'Ballotines (farce fine)',temp:'85 °C',min:12},
+ {name:'Huile verte',temp:'70 °C',min:10},
+ {name:'Courge rôtie',temp:'150 °C',min:45},
  {name:'Pépins de courge',min:10},
- {name:'Tuile dessert',min:5},
- {name:'Tuile plat',min:7},
- {name:'Tartelettes',min:12},
- {name:'Sablé',min:15},
- {name:'Baklava',min:15},
- {name:'Carré de cochon',min:15}];
-function slot(i){const cols=Math.max(1,Math.floor((innerWidth-8)/176));return[8+(i%cols)*176,66+Math.floor(i/cols)*138]}
+ {name:'Tuile dessert',temp:'150 °C',min:5},
+ {name:'Tuile plat',temp:'150 °C',min:7},
+ {name:'Tartelettes',temp:'150 °C',min:12},
+ {name:'Sablé',temp:'160 °C',min:15},
+ {name:'Baklava',temp:'150 °C',min:15},
+ {name:'Carré de cochon',temp:'180 °C · 56 °C à cœur',min:15}];
+function slot(i){const cols=Math.max(1,Math.floor((innerWidth-8)/176));return[8+(i%cols)*176,66+Math.floor(i/cols)*148]}
 presets.forEach((p,i)=>{const[x,y]=slot(i);addTimer(p,x,y)});
 document.getElementById('add').onclick=()=>{const i=timers.length,[x,y]=slot(i);const t=addTimer({min:5},x,y);t.el.style.zIndex=++z;t.el.querySelector('.ed').click()};
 
